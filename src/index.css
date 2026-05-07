@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-zinc-950: #09090b;
+  --color-zinc-900: #18181b;
+  --color-zinc-800: #27272a;
+  --color-zinc-700: #3f3f46;
+}
+
+@layer base {
+  body {
+    @apply bg-zinc-950 text-zinc-100 antialiased font-sans;
+  }
+}
+
+.glass {
+  @apply bg-zinc-900/50 backdrop-blur-md border-b border-zinc-800;
+}
+
+.geometric-card {
+  @apply bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden transition-all;
+}
+
+.geometric-btn {
+  @apply px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded shadow-lg shadow-indigo-900/20 uppercase tracking-tighter transition-all;
+}
+
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500;
+}
+
+.bg-grid {
+  background-image: radial-gradient(circle, #3f3f46 1px, transparent 1px);
+  background-size: 20px 20px;
+}

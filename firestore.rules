@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    // User Profile Validation
+    function isValidUser(data) {
+      return data.uid == request.auth.uid &&
+             data.username is string && data.username.size() >= 3 && data.username.size() <= 32 &&
+             data.email is string && data.email.size() <= 128 &&
+             (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 512)) &&
+             data.stats is map &&
+             data.stats.xp is int && data.stats.xp >= 0 &&
+             data.stats.wins is int && data.stats.wins >= 0 &&
+             data.stats.gamesPlayed is int && data.stats.gamesPlayed >= 0 &&
+             data.lastActive == request.time;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn(); // We might need to list for leaderboard display
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().uid == userId &&
+                    incoming().email == existing().email;
+    }
+
+    // Leaderboard
+    match /leaderboards/{entryId} {
+      allow read: if true; // Public leaderboard
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update: if false; // Scores are updated by creating new entries or replaced (system would handle)
+    }
+
+    // Sessions
+    function isPlayerInSession(players) {
+      return isSignedIn() && request.auth.uid in players;
+    }
+
+    match /sessions/{sessionId} {
+      allow get: if isPlayerInSession(existing().players);
+      allow list: if isSignedIn(); // To find open lobbies
+      allow create: if isSignedIn() && 
+                    incoming().players.size() > 0 &&
+                    request.auth.uid in incoming().players &&
+                    incoming().status == 'waiting' &&
+                    incoming().createdAt == request.time;
+      
+      allow update: if isSignedIn() && (
+        // Action: Join
+        (existing().status == 'waiting' && 
+         incoming().status in ['waiting', 'playing'] &&
+         incoming().players.size() > existing().players.size() &&
+         request.auth.uid in incoming().players &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['players', 'status', 'updatedAt'])) ||
+        
+        // Action: Game Update
+        (existing().status == 'playing' && 
+         isPlayerInSession(existing().players) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['gameState', 'status', 'winnerId', 'updatedAt']))
+      );
+    }
+
+    // Game Scores for Leaderboard
+    function isValidScore(data) {
+      return data.userId == request.auth.uid &&
+             data.username is string &&
+             data.gameType in ['math', 'riddles', 'sudoku'] &&
+             data.score is int &&
+             data.difficulty in ['easy', 'medium', 'hard'] &&
+             data.timeTaken is int &&
+             data.timestamp == request.time;
+    }
+
+    match /scores/{scoreId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidScore(incoming());
+      allow update, delete: if false;
+    }
+  }
+}

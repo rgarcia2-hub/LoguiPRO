@@ -1,0 +1,6 @@
+{
+  "name": "MindMaster Logic Arcade",
+  "description": "Una plataforma de juegos de lógica con Sudoku, retos aritméticos y dilemas éticos, con modo multijugador y clasificación global.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

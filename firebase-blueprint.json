@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Public and private user data including statistics",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "photoURL": { "type": "string" },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "xp": { "type": "integer" },
+            "wins": { "type": "integer" },
+            "gamesPlayed": { "type": "integer" }
+          }
+        },
+        "lastActive": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "email"]
+    },
+    "LeaderboardEntry": {
+      "title": "Leaderboard Entry",
+      "description": "Aggregated score for rankings",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "score": { "type": "integer" },
+        "type": { "type": "string", "enum": ["global", "weekly", "daily"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "MultiplayerSession": {
+      "title": "Multiplayer Session",
+      "description": "Active game sessions for logic challenges",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["sudoku", "math", "logic"] },
+        "status": { "type": "string", "enum": ["waiting", "playing", "finished"] },
+        "players": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "gameState": { "type": "object" },
+        "winnerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Score": {
+      "title": "Game Score",
+      "description": "Individual game performance record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "gameType": { "type": "string", "enum": ["math", "riddles", "sudoku"] },
+        "score": { "type": "integer" },
+        "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] },
+        "timeTaken": { "type": "integer" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/leaderboards/{entryId}": {
+      "schema": "LeaderboardEntry",
+      "description": "Global leaderboard rankings"
+    },
+    "/scores/{scoreId}": {
+      "schema": "Score",
+      "description": "Individual game scores for detailed rankings"
+    },
+    "/matching/lobby": {
+      "schema": "object",
+      "description": "Active queue for matchmaking"
+    },
+    "/sessions/{sessionId}": {
+      "schema": "MultiplayerSession",
+      "description": "Active multiplayer game sessions"
+    }
+  }
+}
