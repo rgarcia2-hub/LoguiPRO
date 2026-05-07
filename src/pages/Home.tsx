@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Brain, Hash, Zap, Users, Trophy, Play, Star } from 'lucide-react';
+import { Brain, Hash, Zap, Users, Trophy, Play, Star, Clock, Infinity, Skull, Map as MapIcon, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 
@@ -35,6 +35,8 @@ const games = [
 ];
 
 export const Home = () => {
+  const [selectedMode, setSelectedMode] = React.useState('standard');
+
   return (
     <div className="space-y-12">
       <header className="flex justify-between items-end">
@@ -83,7 +85,7 @@ export const Home = () => {
                   <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{game.difficulty}</span>
                 </div>
                 <Link 
-                  to={game.path}
+                  to={`${game.path}?mode=${selectedMode}`}
                   className="geometric-btn flex items-center gap-2"
                 >
                   Initialize <Play className="w-3 h-3 fill-current" />
@@ -93,6 +95,59 @@ export const Home = () => {
           </motion.div>
         ))}
       </div>
+
+      <section className="space-y-6">
+        <div className="flex justify-between items-end">
+          <h2 className="text-xl font-bold italic uppercase tracking-tighter border-l-4 border-indigo-500 pl-4">Operational Modes</h2>
+          <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest italic">Current Filter: {selectedMode}</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { id: 'standard', title: 'Standard Sync', desc: 'Baseline diagnostic protocol.', icon: Play, color: 'text-zinc-100', border: 'border-zinc-800' },
+            { id: 'time', title: 'Time Attack', desc: 'Max efficiency under strict windows.', icon: Clock, color: 'text-amber-400', border: 'border-amber-500/20' },
+            { id: 'infinite', title: 'Infinite Loop', desc: 'No terminal state. Pure persistence.', icon: Infinity, color: 'text-emerald-400', border: 'border-emerald-500/20' },
+            { id: 'hardcore', title: 'Hardcore', desc: 'Zero tolerance for computation errors.', icon: Skull, color: 'text-rose-500', border: 'border-rose-500/20' },
+            { id: 'story', title: 'Story Mode', desc: 'Neural narrative progression [SECURE].', icon: MapIcon, color: 'text-indigo-400', border: 'border-indigo-500/20', path: '/story' },
+          ].map((mode) => (
+            mode.id === 'story' ? (
+              <Link
+                key={mode.id}
+                to="/story"
+                className={cn(
+                  "geometric-card p-6 group cursor-pointer transition-all text-left w-full border-indigo-500/20 hover:bg-zinc-900/80"
+                )}
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <mode.icon className={cn("w-6 h-6", mode.color)} />
+                  <div className="w-1.5 h-1.5 rounded-full bg-zinc-800 group-hover:bg-indigo-500 transition-colors"></div>
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-tight mb-1">{mode.title}</h3>
+                <p className="text-[10px] text-zinc-500 italic leading-relaxed">{mode.desc}</p>
+              </Link>
+            ) : (
+              <button 
+                key={mode.id} 
+                onClick={() => setSelectedMode(mode.id)}
+                className={cn(
+                  "geometric-card p-6 group cursor-pointer transition-all text-left w-full", 
+                  mode.border,
+                  selectedMode === mode.id ? "bg-indigo-500/10 border-indigo-500 ring-1 ring-indigo-500/50" : "hover:bg-zinc-900/80"
+                )}
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <mode.icon className={cn("w-6 h-6", mode.color)} />
+                  <div className={cn(
+                    "w-1.5 h-1.5 rounded-full transition-colors",
+                    selectedMode === mode.id ? "bg-indigo-500 animate-ping" : "bg-zinc-800 group-hover:bg-indigo-500"
+                  )}></div>
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-tight mb-1">{mode.title}</h3>
+                <p className="text-[10px] text-zinc-500 italic leading-relaxed">{mode.desc}</p>
+              </button>
+            )
+          ))}
+        </div>
+      </section>
 
       <section className="bg-indigo-900/10 border border-indigo-500/20 rounded-xl p-8 flex flex-col md:flex-row justify-between items-center gap-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 border-r-4 border-t-4 border-indigo-500/20 -translate-y-8 translate-x-8 rounded-tr-[40px] pointer-events-none"></div>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Hash, RotateCcw, CheckCircle2, Trophy, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Hash, RotateCcw, CheckCircle2, Trophy, ArrowLeft, Clock, Infinity as InfinityIcon, Skull, Map as MapIcon, Play } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { db } from '../lib/firebase';
 import { doc, updateDoc, increment, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { cn } from '../lib/utils';
 
 // Basic Sudoku Generator/Validator logic
 const isValid = (board: number[][], row: number, col: number, num: number) => {
@@ -69,13 +70,30 @@ const generateSudoku = (difficulty: 'easy' | 'medium' | 'hard') => {
 
 export const SudokuGame = () => {
   const { profile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const gameMode = searchParams.get('mode') || 'standard';
+
   const [board, setBoard] = useState<number[][]>([]);
   const [initialBoard, setInitialBoard] = useState<number[][]>([]);
   const [solution, setSolution] = useState<number[][]>([]);
   const [selected, setSelected] = useState<[number, number] | null>(null);
   const [won, setWon] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
   const [startTime, setStartTime] = useState<number>(0);
+  const [timeLeft, setTimeLeft] = useState(600); // 10 mins default for time attack
+
+  const getModeData = () => {
+    switch (gameMode) {
+      case 'time': return { title: 'Time Attack', icon: Clock, color: 'text-amber-400' };
+      case 'infinite': return { title: 'Infinite Loop', icon: InfinityIcon, color: 'text-emerald-400' };
+      case 'hardcore': return { title: 'Hardcore', icon: Skull, color: 'text-rose-500' };
+      case 'story': return { title: 'Story Mode', icon: MapIcon, color: 'text-indigo-400' };
+      default: return { title: 'Standard Sync', icon: Play, color: 'text-zinc-100' };
+    }
+  };
+
+  const modeData = getModeData();
 
   const startNewGame = (diff: 'easy' | 'medium' | 'hard' = difficulty) => {
     const { puzzle, solution } = generateSudoku(diff);
@@ -83,23 +101,46 @@ export const SudokuGame = () => {
     setInitialBoard(puzzle.map(r => [...r]));
     setSolution(solution);
     setWon(false);
+    setFailed(false);
     setSelected(null);
     setStartTime(Date.now());
+    if (gameMode === 'time') setTimeLeft(600);
   };
+
+  useEffect(() => {
+    if (gameMode !== 'time' || won || failed || board.length === 0) return;
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          setFailed(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [gameMode, won, failed, board]);
 
   useEffect(() => {
     startNewGame();
   }, []);
 
   const handleCellClick = (r: number, c: number) => {
-    if (initialBoard[r][c] === 0) {
+    if (initialBoard[r][c] === 0 && !won && !failed) {
       setSelected([r, c]);
     }
   };
 
   const setNumber = (num: number) => {
-    if (!selected || won) return;
+    if (!selected || won || failed) return;
     const [r, c] = selected;
+
+    // Hardcore logic: check immediately
+    if (gameMode === 'hardcore' && num !== solution[r][c]) {
+      setFailed(true);
+      return;
+    }
+
     const newBoard = board.map(row => [...row]);
     newBoard[r][c] = num;
     setBoard(newBoard);
@@ -206,6 +247,24 @@ export const SudokuGame = () => {
         </div>
 
         <aside className="space-y-6">
+          {gameMode === 'time' && (
+            <div className="geometric-card p-6 space-y-2">
+              <div className="flex justify-between items-end">
+                <span className="text-[10px] font-black uppercase text-zinc-500 italic tracking-widest leading-none">Thermal Buffer</span>
+                <span className={cn("font-mono text-lg font-black italic leading-none", timeLeft < 60 ? "text-rose-500 animate-pulse" : "text-amber-400")}>
+                  {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                </span>
+              </div>
+              <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: '100%' }}
+                  animate={{ width: `${(timeLeft / 600) * 100}%` }}
+                  className={cn("h-full", timeLeft < 60 ? "bg-rose-500" : "bg-amber-400")}
+                />
+              </div>
+            </div>
+          )}
+
           <section className="geometric-card p-6 space-y-6">
             <h3 className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold italic">Game Context</h3>
             <div className="space-y-4 text-xs leading-relaxed text-zinc-400">
@@ -237,17 +296,22 @@ export const SudokuGame = () => {
           </section>
 
           <AnimatePresence>
-            {won && (
+            {(won || failed) && (
               <motion.div 
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="bg-emerald-500/10 border border-emerald-500/20 rounded p-6 text-center space-y-3"
+                className={cn(
+                  "border rounded p-6 text-center space-y-3",
+                  failed ? "bg-rose-500/10 border-rose-500/20" : "bg-emerald-500/10 border-emerald-500/20"
+                )}
               >
-                <div className="flex items-center justify-center gap-3 text-emerald-400">
-                  <CheckCircle2 className="w-6 h-6" />
-                  <span className="text-sm font-bold uppercase tracking-widest">Sequence Validated</span>
+                <div className={cn("flex items-center justify-center gap-3", failed ? "text-rose-500" : "text-emerald-400")}>
+                  {failed ? <Skull className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
+                  <span className="text-sm font-bold uppercase tracking-widest">{failed ? 'Protocol Failed' : 'Sequence Validated'}</span>
                 </div>
-                <p className="text-xs text-emerald-300 opacity-80">Cognitive pattern successfully mapped. XP awarded.</p>
+                <p className={cn("text-xs opacity-80", failed ? "text-rose-300" : "text-emerald-300")}>
+                  {failed ? 'Operational integrity compromised. Recalibration required.' : 'Cognitive pattern successfully mapped. XP awarded.'}
+                </p>
               </motion.div>
             )}
           </AnimatePresence>

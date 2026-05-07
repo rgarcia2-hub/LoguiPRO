@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Zap, Timer, Brain, Trophy, ArrowLeft, RefreshCcw } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Zap, Timer, Brain, Trophy, ArrowLeft, RefreshCcw, Clock, Infinity as InfinityIcon, Skull, Map as MapIcon, Play } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { db } from '../lib/firebase';
 import { doc, updateDoc, increment, collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -14,14 +14,30 @@ interface Question {
 
 export const MathGame = () => {
   const { profile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const gameMode = searchParams.get('mode') || 'standard';
+
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
   const [gameState, setGameState] = useState<'IDLE' | 'PLAYING' | 'FINISHED'>('IDLE');
   const [question, setQuestion] = useState<Question | null>(null);
   const [userInput, setUserInput] = useState('');
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
+  const [maxTime, setMaxTime] = useState(30);
   const [startTime, setStartTime] = useState<number>(0);
   const [correctFlash, setCorrectFlash] = useState(false);
+
+  const getModeData = () => {
+    switch (gameMode) {
+      case 'time': return { title: 'Time Attack', icon: Clock, color: 'text-amber-400' };
+      case 'infinite': return { title: 'Infinite Loop', icon: InfinityIcon, color: 'text-emerald-400' };
+      case 'hardcore': return { title: 'Hardcore', icon: Skull, color: 'text-rose-500' };
+      case 'story': return { title: 'Story Mode', icon: MapIcon, color: 'text-indigo-400' };
+      default: return { title: 'Standard Sync', icon: Play, color: 'text-zinc-100' };
+    }
+  };
+
+  const modeData = getModeData();
 
   const generateQuestion = useCallback(() => {
     const level = score + 1;
@@ -71,7 +87,14 @@ export const MathGame = () => {
   const startGame = (diff: 'easy' | 'medium' | 'hard' = difficulty) => {
     setDifficulty(diff);
     setScore(0);
-    setTimeLeft(30);
+    
+    let initialTime = 30;
+    if (gameMode === 'time') initialTime = 15;
+    if (gameMode === 'hardcore') initialTime = 10;
+    if (gameMode === 'infinite') initialTime = 9999;
+    
+    setTimeLeft(initialTime);
+    setMaxTime(initialTime);
     setGameState('PLAYING');
     setUserInput('');
     setStartTime(Date.now());
@@ -80,13 +103,13 @@ export const MathGame = () => {
 
   useEffect(() => {
     let timer: any;
-    if (gameState === 'PLAYING' && timeLeft > 0) {
+    if (gameState === 'PLAYING' && timeLeft > 0 && gameMode !== 'infinite') {
       timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-    } else if (timeLeft === 0 && gameState === 'PLAYING') {
+    } else if (timeLeft === 0 && gameState === 'PLAYING' && gameMode !== 'infinite') {
       finishGame();
     }
     return () => clearInterval(timer);
-  }, [gameState, timeLeft]);
+  }, [gameState, timeLeft, gameMode]);
 
   const finishGame = async () => {
     setGameState('FINISHED');
@@ -121,7 +144,17 @@ export const MathGame = () => {
       setCorrectFlash(true);
       setTimeout(() => setCorrectFlash(false), 200);
       generateQuestion();
-      setTimeLeft(prev => Math.min(prev + 2, 30)); // Bonus time
+      
+      // Mode based rewards
+      if (gameMode === 'standard') {
+        setTimeLeft(prev => Math.min(prev + 2, 30));
+      } else if (gameMode === 'hardcore') {
+        setTimeLeft(10); // Reset in hardcore
+      }
+    } else if (val.length >= String(question?.answer || '').length && gameMode === 'hardcore') {
+      if (parseInt(val) !== question?.answer) {
+        finishGame();
+      }
     }
   };
 
@@ -133,7 +166,11 @@ export const MathGame = () => {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-4xl font-black italic tracking-tighter uppercase">Arithmetic Duel</h1>
+            <div className="flex items-center gap-2 mb-1">
+              <modeData.icon className={cn("w-4 h-4", modeData.color)} />
+              <span className={cn("text-[10px] font-black uppercase tracking-widest italic", modeData.color)}>{modeData.title}</span>
+            </div>
+            <h1 className="text-4xl font-black italic tracking-tighter uppercase leading-none">Arithmetic Duel</h1>
             <p className="text-zinc-500 text-xs uppercase tracking-widest font-bold">Category: Computational Speed • Neural Sync</p>
           </div>
         </div>
@@ -222,16 +259,16 @@ export const MathGame = () => {
                     {timeLeft}s
                   </span>
                 </div>
-                <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: '100%' }}
-                    animate={{ width: `${(timeLeft / 30) * 100}%` }}
-                    className={cn(
-                      "h-full transition-colors shadow-[0_0_10px_rgba(0,0,0,0.5)]",
-                      timeLeft < 10 ? 'bg-rose-500' : 'bg-emerald-500'
-                    )}
-                  />
-                </div>
+                  <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: '100%' }}
+                      animate={{ width: `${(timeLeft / maxTime) * 100}%` }}
+                      className={cn(
+                        "h-full transition-colors shadow-[0_0_10px_rgba(0,0,0,0.5)]",
+                        timeLeft < maxTime * 0.3 ? 'bg-rose-500' : 'bg-emerald-500'
+                      )}
+                    />
+                  </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 pt-4 border-t border-zinc-800">

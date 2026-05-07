@@ -9,6 +9,7 @@ import { Leaderboard } from './pages/Leaderboard';
 import { SudokuGame } from './pages/SudokuGame';
 import { MathGame } from './pages/MathGame';
 import { LogicPuzzles } from './pages/LogicPuzzles';
+import { StoryMode } from './pages/StoryMode';
 import { MultiplayerLobby } from './pages/MultiplayerLobby';
 import { GameSession } from './pages/GameSession';
 
@@ -49,6 +50,12 @@ export default function App() {
           <Route path="/games/riddles" element={
             <ProtectedRoute>
               <Layout><LogicPuzzles /></Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/story" element={
+            <ProtectedRoute>
+              <Layout><StoryMode /></Layout>
             </ProtectedRoute>
           } />
 
